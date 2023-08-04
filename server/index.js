@@ -7,6 +7,7 @@ const cookieParser = require("cookie-parser");
 const multer = require("multer");
 const path = require("path");
 const UserModel = require("./models/UserModel");
+const PostModel = require("./models/PostModel")
 
 const app = express();
 app.use(express.json());
@@ -45,8 +46,8 @@ app.post("/login", (req, res) => {
             "jwt-secret-key",
             { expiresIn: "1day" }
           );
-          res.cookie("token", token);
-          return res.json("Success");
+          res.cookie("token", token, { sameSite: "lax", secure: true }); 
+          res.json("Success");
         } else {
           return res.json("Password Incorrect");
         }
@@ -68,17 +69,40 @@ const verifyUser = (req, res, next) => {
         }else{
             req.email = decoded.email;
             req.username = decoded.username;
-
+            next();
         }
     });
   }
 };
+
 app.get("/home", verifyUser, (req, res) => {
     return res.json({
         email:req.email,
         username: req.username
     })
 });
+
+app.get("/logout", (req, res)=>{
+  res.clearCookie("token");
+  return res.json("Success")
+});
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb)=>{
+    cb(null, "public/Images")
+  },
+  filename: (req, file, cb)=>{
+    cb(null, file.filename + "_" + Date.now() + path.extname(file.originalname))
+  }
+})
+
+const upload = multer({
+  storage: storage
+})
+
+app.post("/create", verifyUser, upload.single("file"), (req, res)=>{
+  console.log(req.file);
+})
 
 app.listen(3001, () => {
   console.log("Server is running");
